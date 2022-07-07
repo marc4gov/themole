@@ -47,10 +47,11 @@ const client = createClient({
       <ConnectDialog />
       <header class="App-header">
         <img :src="logo" class="App-logo" alt="logo" />
-        {{principal}}
+        <!-- {{principal}} -->
       </header>
       <div class="examples">
         <Answers />
+        <Profile />
         <JSONForm />
       </div>
     </div>

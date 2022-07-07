@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useCanister } from "@connect2ic/vue"
-import { ref, watchEffect } from "vue"
+import { onMounted, ref, watchEffect } from "vue"
 
 import { JsonForms, JsonFormsChangeEvent } from "@jsonforms/vue";
 import { defaultStyles, mergeStyles, vanillaRenderers } from "@jsonforms/vue-vanilla";
@@ -18,10 +18,9 @@ const schema = {
       title: "Omschrijving van de vraag",
       type: "string",
     },
-    dueDate: {
-      type: "string",
-      format: "date",
-      title: "Welke dag komt deze vraag?"
+    open: {
+      type: "boolean",
+      title: "Vraag staat open"
     },
     answers: {
       "type": "array",
@@ -61,7 +60,7 @@ const uischema = {
     },
     {
       type: "Control",
-      scope: "#/properties/dueDate",
+      scope: "#/properties/open",
     },
     {
     type: "VerticalLayout",
@@ -95,13 +94,32 @@ const uischema = {
   ]
 };
 
-const data = ref({name: "Dag1", description: "Vul de vraag", answers: [{answer: "Antwoord1", score: 3, correctAnswer: false}]})
+const data = ref({id: 0, name: "Dag1", description: "Vul de vraag", answers: [{id: 0, answer: "Antwoord1", score: 3, correctAnswer: false}]})
 const renderers = Object.freeze(vanillaRenderers)
 
 let question = ref()
+let question_objects = ref([])
 let number = ref(0)
-let wachten = ref("Bewaar")
+let wachten1 = ref("Nieuw")
+let wachten2 = ref("Wijzig")
+
 const [questions] = useCanister("questions", { mode: "anonymous" })
+
+const getQuestions = async () => {
+  let qqs = []
+  const freshQuestions = await questions.value.list_closed_questions()
+  for (var id in freshQuestions) {
+    const qs = await questions.value.getQuestion(Number(id))
+    console.log(qs.ok)
+    const qq = {id: Number(id), name: qs.ok.name, description: qs.ok.description, answers: qs.ok.answers}
+    qqs.push(qq)
+  }
+  data.value = qqs[0]
+
+  // const questions = freshQuestions.map(q => Number(q))
+
+}
+
 
 const refreshQuestion = async () => {
   const freshQuestion = await questions.value.showQuestion(number.value)
@@ -113,8 +131,13 @@ const saveAnswer = async (answer, questionId) => {
     return answerId;
 }
 
+const updateAnswer = async (answer, questionId) => {
+    let answerId = await questions.value.updateAnswer(answer.answer, answer.score, questionId);
+    return answerId;
+}
+
 const saveQuestion = async () => {
-  wachten.value = "Wachten..."
+  wachten1.value = "Wachten..."
   const savedQuestionId = await questions.value.addQuestion(data.value.name, data.value.description)
   console.log("QuestionID: ", savedQuestionId)
   const answers = data.value.answers
@@ -125,12 +148,32 @@ const saveQuestion = async () => {
       await questions.value.setCorrectAnswer(savedQuestionId, answerId, answers[i].score)
     } 
   }
-  wachten.value = "Bewaar"
+  wachten1.value = "Nieuw"
 }
+
+const updateQuestion = async () => {
+  wachten2.value = "Wachten..."
+  const savedQuestionId = await questions.value.updateQuestion(data.value.name, data.value.description)
+  console.log("QuestionID: ", savedQuestionId)
+  const answers = data.value.answers
+  for (let i = 0; i < answers.length; i++) {
+    let answerId = await saveAnswer(answers[i], savedQuestionId);
+    if (answers[i].correctAnswer) {
+      console.log("AnswerId: ", answerId)
+      await questions.value.setCorrectAnswer(savedQuestionId, answerId, answers[i].score)
+    } 
+  }
+  wachten2.value = "Wijzig"
+}
+
 
 function onChange(event: JsonFormsChangeEvent) {
   data.value = event.data
 }
+
+onMounted(() => {
+  getQuestions()
+})
 
 watchEffect(() => {
   if (data.value) {
@@ -150,7 +193,8 @@ watchEffect(() => {
     :renderers="renderers"
     @change="onChange"
   />
-  <button class="connect-button" @click=saveQuestion>{{wachten}}</button>
+  <button class="connect-button" @click=saveQuestion>{{wachten1}}</button>
+  <button class="connect-button" @click=updateQuestion>{{wachten2}}</button>
   </div>
 </template>
 

@@ -128,6 +128,29 @@ actor Quiz {
     id
   };
 
+  // Returns the ID that was given to the question item
+  public func updateQuestion(id: Nat, name : Text, description : Text, state: Types.QuestionState) : async Nat {
+    switch(questions.get(identity)) {
+      case (null) { id };
+      case (?question) {
+        let updated_question = {
+          name = name;
+          description = description;
+          state = state;
+          voters = question.voters;
+          correctAnswer = question.correctAnswer;
+          points = question.points;
+          timestamp = Time.now();
+          answers = List.nil<Answer>();
+        };
+        questions.put(id, updated_question);
+        id
+      }
+    }   
+    id
+  };
+
+
   // Returns the ID that was given to the Answer item
   public func addAnswer(description : Text, score : Nat, question_id: Nat) : async Nat {
     let id = nextAnswerId;
@@ -151,6 +174,8 @@ actor Quiz {
       }
     }    
   };
+
+
   public func getQuestion(question_id: Nat) : async Types.Result<Types.MiniQuestion, Text> {
     switch(questions.get(question_id)) {
       case null { #err("No question with ID " # debug_show(question_id) # " exists") };

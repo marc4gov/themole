@@ -1,12 +1,20 @@
 <script setup>
 import { useCanister } from "@connect2ic/vue"
 
-import { useWallet, useBalance, useConnect } from "@connect2ic/vue"
-import {ref} from "vue"
+import { useConnect } from "@connect2ic/vue"
+import {ref, onMounted} from "vue"
+
+import { Principal } from "@dfinity/principal";
+
+import sound from '../widm.mp3'
 
 const name = ref('Vul naam in')
 const wachten = ref('Bewaar')
+
 const [questions] = useCanister("questions", { mode: "anonymous" })
+const [accounts] = useCanister("accounts", { mode: "anonymous" })
+var s = new Audio(sound)
+
 
 const saveAccount = async () => {
   wachten.value = "Wachten..."
@@ -15,9 +23,21 @@ const saveAccount = async () => {
   wachten.value = "Bewaar"
 }
 
+const getAccount = async () => {
+    console.log("Principal connected: ", principal)
+    const p = Principal.fromText(principal.value)
+    console.log("Dit is p: ", p)
+    const res = await accounts.value.get_role2(p)
+    console.log("Role: ", res)
+}
+
+const play = () => {
+  s.play()
+}
+
 const { isConnected, principal, activeProvider } = useConnect({
   onConnect: () => {
-    console.log("Principal connected: ", principal)
+
     // Signed in
   },
   onDisconnect: () => {
@@ -41,14 +61,16 @@ const { isConnected, principal, activeProvider } = useConnect({
               <input v-model="name"> {{ name }}
             </td>
             <td>
-              <button class="connect-button" @click="saveAccount">{{wachten}}</button>
+              <button class="connect-button" @click="getAccount">{{wachten}}</button>
+              <button class="connect-button" @click="play">Geluid</button>
+
             </td>
           </tr>
         </tbody>
       </table>
     </template>
     <template v-else>
-      <p class="example-disabled">Connect with a wallet to access this example</p>
+      <p class="example-disabled">Connect om </p>
     </template>
   </div>
 </template>

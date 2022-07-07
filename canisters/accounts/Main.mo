@@ -35,12 +35,17 @@ shared({ caller = initializer }) actor class() {
         return a == b;
     };
 
+
     func get_role(pal: Principal) : ?Role {
         if (pal == initializer) {
             ?#owner;
         } else {
             AssocList.find<Principal, Role>(roles, pal, principal_eq);
         }
+    };
+
+    public func get_role2(pal: Principal) : async ?Role {
+        AssocList.find<Principal, Role>(roles, pal, principal_eq);
     };
 
     // Determine if a principal has a role with permissions
@@ -85,6 +90,11 @@ shared({ caller = initializer }) actor class() {
     // Return the principal of the message caller/user identity
     public shared({ caller }) func callerPrincipal() : async Principal {
         return caller;
+    };
+
+    // Return the principal of the message caller/user identity
+    public shared({ caller }) func callerPrincipal2(p : Principal) : async Principal {
+        return p;
     };
 
     // Return the role of the message caller/user identity
