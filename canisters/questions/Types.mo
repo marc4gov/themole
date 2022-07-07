@@ -14,6 +14,7 @@ module {
     id: Nat;
     description: Text;
     score: Nat;
+    correct: Bool;
   };
 
   public type Question = {
@@ -21,7 +22,6 @@ module {
     description: Text;
     state: QuestionState;
     voters : List.List<Principal>;
-    correctAnswer: Nat;
     points: Nat;
     timestamp: Int;
     answers: List.List<Answer>;

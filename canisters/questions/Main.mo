@@ -118,7 +118,6 @@ actor Quiz {
                         description = description; 
                         state = #closed;
                         voters = List.nil<Principal>();
-                        correctAnswer = 0;
                         points = 0;
                         timestamp = Time.now();
                         answers = List.nil<Answer>();
@@ -129,16 +128,19 @@ actor Quiz {
   };
 
   // Returns the ID that was given to the question item
-  public func updateQuestion(id: Nat, name : Text, description : Text, state: Types.QuestionState) : async Nat {
-    switch(questions.get(identity)) {
+  public func updateQuestion(id: Nat, name : Text, description : Text, open_state: Bool) : async Nat {
+    switch(questions.get(id)) {
       case (null) { id };
       case (?question) {
+        var updated_state : Types.QuestionState = #closed;
+        if (open_state) {
+          updated_state := #open;
+        };
         let updated_question = {
           name = name;
           description = description;
-          state = state;
+          state = updated_state;
           voters = question.voters;
-          correctAnswer = question.correctAnswer;
           points = question.points;
           timestamp = Time.now();
           answers = List.nil<Answer>();
@@ -147,24 +149,22 @@ actor Quiz {
         id
       }
     }   
-    id
   };
 
 
   // Returns the ID that was given to the Answer item
-  public func addAnswer(description : Text, score : Nat, question_id: Nat) : async Nat {
+  public func addAnswer(description : Text, score : Nat, correct: Bool, question_id: Nat) : async Nat {
     let id = nextAnswerId;
     nextAnswerId += 1;
     switch(questions.get(question_id)) {
       case (null) { id };
       case (?question) {
-        let answers = List.push({id = id; description = description; score = score }, question.answers);
+        let answers = List.push({id = id; description = description; score = score; correct = correct }, question.answers);
         let updated_question = {
           name = question.name;
           description = question.description;
           state = question.state;
           voters = question.voters;
-          correctAnswer = question.correctAnswer;
           points = question.points;
           timestamp = Time.now();
           answers = answers;
@@ -195,7 +195,6 @@ actor Quiz {
           description = question.description;
           state = #open;
           voters = question.voters;
-          correctAnswer = question.correctAnswer;
           points = question.points;
           timestamp = Time.now();
           answers = question.answers;
@@ -214,28 +213,7 @@ actor Quiz {
           description = question.description;
           state = #closed;
           voters = question.voters;
-          correctAnswer = question.correctAnswer;
           points = question.points;
-          timestamp = Time.now();
-          answers = question.answers;
-        };
-        questions.put(question_id, updated_question);
-      };
-    };
-  };
-
-
-  public func setCorrectAnswer(question_id: Nat, correctAnswer : Nat, points : Nat) : async () {
-    switch(questions.get(question_id)) {
-      case (null) { };
-      case (?question) {
-        let updated_question = {
-          name = question.name;
-          description = question.description;
-          state = question.state;
-          voters = question.voters;
-          correctAnswer = correctAnswer;
-          points = points;
           timestamp = Time.now();
           answers = question.answers;
         };
@@ -252,7 +230,6 @@ actor Quiz {
         var output : Text = "\n___Question___";
         output #= "\n" # question.name;
         output #= "\n" # question.description;
-        output #= "\n" # Nat.toText(question.correctAnswer);
         List.iterate<Answer>(question.answers, func (answer : Answer) {
           output #= "\n" # answer.description;
           output #= "\n" # Nat.toText(answer.score);
@@ -279,13 +256,13 @@ actor Quiz {
               };        
               let pnts = question.points;
               let answer_id = args.answer_id;
-              if (answer_id == question.correctAnswer) {
-                account_put(caller, {name = player.name; score = player.score + pnts});
-              } else {
-                let ans = List.find(question.answers, func (a : Answer) : Bool = a.id == answer_id);
-                switch (ans) {
-                  case null { return #err("Answer id does not exist") };
-                  case (?answer) {
+              let ans = List.find(question.answers, func (a : Answer) : Bool = a.id == answer_id);
+              switch (ans) {
+                case null { return #err("Answer id does not exist") };
+                case (?answer) {
+                  if (answer.correct) {
+                    account_put(caller, {name = player.name; score = player.score + pnts});
+                  } else {
                     account_put(caller, {name = player.name; score = player.score + answer.score});
                   };
                 };
@@ -301,7 +278,6 @@ actor Quiz {
                   description = question.description;
                   state;
                   voters;
-                  correctAnswer = question.correctAnswer;
                   points = question.points;
                   timestamp = question.timestamp;
                   answers = question.answers;

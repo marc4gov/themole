@@ -70,7 +70,7 @@ const { isConnected, principal, activeProvider } = useConnect({
       </table>
     </template>
     <template v-else>
-      <p class="example-disabled">Connect om </p>
+      <p class="example-disabled">Connect om vragen te zien </p>
     </template>
   </div>
 </template>

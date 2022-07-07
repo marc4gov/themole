@@ -4,11 +4,16 @@ import { onMounted, ref, watchEffect } from "vue"
 
 import { JsonForms, JsonFormsChangeEvent } from "@jsonforms/vue";
 import { defaultStyles, mergeStyles, vanillaRenderers } from "@jsonforms/vue-vanilla";
+import { isDescriptionHidden } from "@jsonforms/core";
 // mergeStyles combines all classes from both styles definitions into one
 const myStyles = mergeStyles(defaultStyles, { control: { label: "mylabel" } });
 
 const schema = {
   properties: {
+    qid: {
+      type: "number",
+      minLength: 1,
+    },
     name: {
       type: "string",
       minLength: 1,
@@ -28,6 +33,10 @@ const schema = {
       "items": {
         "type": "object",
         "properties": {
+          // aid: {
+          //   type: "number",
+          //   minLength: 1,
+          // },
           answer: {
             type: "string",
             minLength: 1,
@@ -37,7 +46,7 @@ const schema = {
             title: "score",
             type: "integer",
           },
-          correctAnswer: {
+          correct: {
             title: "Correct",
             type: "boolean",
           },
@@ -63,7 +72,7 @@ const uischema = {
       scope: "#/properties/open",
     },
     {
-    type: "VerticalLayout",
+    type: "HorizontalLayout",
     elements: [
         {
           type: "Control",
@@ -83,7 +92,7 @@ const uischema = {
                 },
                 {
                   type: "Control",
-                  scope: "#/properties/correctAnswer",
+                  scope: "#/properties/correct",
                 }
               ]
             }
@@ -94,7 +103,7 @@ const uischema = {
   ]
 };
 
-const data = ref({id: 0, name: "Dag1", description: "Vul de vraag", answers: [{id: 0, answer: "Antwoord1", score: 3, correctAnswer: false}]})
+const data = ref({qid: 0, name: "Dag1", description: "Vul de vraag", open: false, answers: [{aid: 0, answer: "Antwoord1", score: 3, correct: false}]})
 const renderers = Object.freeze(vanillaRenderers)
 
 let question = ref()
@@ -108,17 +117,21 @@ const [questions] = useCanister("questions", { mode: "anonymous" })
 const getQuestions = async () => {
   let qqs = []
   const freshQuestions = await questions.value.list_closed_questions()
-  for (var id in freshQuestions) {
-    const qs = await questions.value.getQuestion(Number(id))
-    console.log(qs.ok)
-    const qq = {id: Number(id), name: qs.ok.name, description: qs.ok.description, answers: qs.ok.answers}
+  for (var qid in freshQuestions) {
+    const qs = await questions.value.getQuestion(Number(qid))
+    console.log("QS: ", qs.ok)
+    const ans = qs.ok.answers
+    const as = await ans.map(a => { return {aid : Number(a.id), answer: a.description, score: Number(a.score), correct: a.correct}})
+    console.log("AS: ", as)
+    const qq = {qid: Number(qid), name: qs.ok.name, description: qs.ok.description, open: false, answers: as}
+    console.log("QQ: ", as)
     qqs.push(qq)
   }
+  question_objects.value = qqs
   data.value = qqs[0]
-
-  // const questions = freshQuestions.map(q => Number(q))
-
+  
 }
+
 
 
 const refreshQuestion = async () => {
@@ -127,12 +140,10 @@ const refreshQuestion = async () => {
 }
 
 const saveAnswer = async (answer, questionId) => {
-    let answerId = await questions.value.addAnswer(answer.answer, answer.score, questionId);
-    return answerId;
-}
-
-const updateAnswer = async (answer, questionId) => {
-    let answerId = await questions.value.updateAnswer(answer.answer, answer.score, questionId);
+    if(answer.correct == undefined) {
+      answer.correct = false
+    }
+    let answerId = await questions.value.addAnswer(answer.answer, answer.score, answer.correct, questionId);
     return answerId;
 }
 
@@ -143,25 +154,18 @@ const saveQuestion = async () => {
   const answers = data.value.answers
   for (let i = 0; i < answers.length; i++) {
     let answerId = await saveAnswer(answers[i], savedQuestionId);
-    if (answers[i].correctAnswer) {
-      console.log("AnswerId: ", answerId)
-      await questions.value.setCorrectAnswer(savedQuestionId, answerId, answers[i].score)
-    } 
   }
   wachten1.value = "Nieuw"
+  getQuestions()
 }
 
 const updateQuestion = async () => {
   wachten2.value = "Wachten..."
-  const savedQuestionId = await questions.value.updateQuestion(data.value.name, data.value.description)
+  const savedQuestionId = await questions.value.updateQuestion(data.value.qid, data.value.name, data.value.description, data.value.open)
   console.log("QuestionID: ", savedQuestionId)
   const answers = data.value.answers
   for (let i = 0; i < answers.length; i++) {
     let answerId = await saveAnswer(answers[i], savedQuestionId);
-    if (answers[i].correctAnswer) {
-      console.log("AnswerId: ", answerId)
-      await questions.value.setCorrectAnswer(savedQuestionId, answerId, answers[i].score)
-    } 
   }
   wachten2.value = "Wijzig"
 }
@@ -170,6 +174,17 @@ const updateQuestion = async () => {
 function onChange(event: JsonFormsChangeEvent) {
   data.value = event.data
 }
+
+const increment = async () => {
+  number.value++
+  data.value = question_objects.value[number.value]
+}
+
+const decrement = async () => {
+  number.value--
+  data.value = question_objects.value[number.value]
+}
+
 
 onMounted(() => {
   getQuestions()
@@ -185,7 +200,9 @@ watchEffect(() => {
 
 
 <template>
-  <div className="myform">
+  <div>
+        <button class="connect-button" @click=decrement>-</button>
+    <button class="connect-button" @click=increment>+</button>
   <JsonForms
     :data="data"
     :schema="schema"

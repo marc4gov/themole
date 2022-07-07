@@ -49,9 +49,9 @@ const client = createClient({
         <img :src="logo" class="App-logo" alt="logo" />
         <!-- {{principal}} -->
       </header>
-      <div class="examples">
-        <Answers />
-        <Profile />
+      <div class="example">
+        <!-- <Answers />
+        <Profile /> -->
         <JSONForm />
       </div>
     </div>
