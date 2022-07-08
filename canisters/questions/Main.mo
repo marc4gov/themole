@@ -54,26 +54,17 @@ actor Quiz {
   // };
 
 
-  public func createAccountName(name: Text) : async Text {
-    account_name_put(name, {name = name; score = 0});
+  public func createAccountName(prince: Text, name: Text) : async Text {
+    account_name_put(prince, {name = name; score = 0});
     name
   };
 
-  // public func createQuestion(name : Text, description : Text) : async Text {
-  //   question_put(name, { 
-  //                       name = name; 
-  //                       description = description; 
-  //                       state = #closed;
-  //                       voters = List.nil<Principal>();
-  //                       correctAnswer = 0;
-  //                       points = 0;
-  //                       timestamp = Time.now();
-  //                       answers = Map.HashMap<Nat, Answer>(0, Nat.equal, natHash);
-  //                     }
-  //                 );
-  //   name
-  // };
-
+  public func accountExist(prince: Text) : async Bool {
+    switch(account_name_get(prince)) {
+      case (null) { false };
+      case (?player) { true };
+    };
+  };
 
   /// Lists all account names
   public query func list_open_questions() : async [Nat] {
@@ -95,6 +86,15 @@ actor Quiz {
     };
     return buff.toArray();
   };
+
+  public query func list_questions() : async [Nat] {
+    let buff = Buffer.Buffer<Nat>(50);
+    for ( (k,v) in questions.entries()) {
+        buff.add(k);
+    };
+    return buff.toArray();
+  };
+
 
   /// Lists all account names
   public query func list_accountNames() : async [Types.AccountName] {
@@ -240,13 +240,43 @@ actor Quiz {
   };
 
   // Vote on an open question
-  public shared({caller}) func vote(args: Types.Vote) : async Types.Result<Types.QuestionState, Text> {
-      switch (questions.get(args.question_id)) {
-        case null { #err("No question with ID " # debug_show(args.question_id) # " exists") };
+  public func vote2(answer_id: Nat, question_id: Nat, account_name: Text) : async Types.Result<Types.QuestionState, Text> {
+      switch (questions.get(question_id)) {
+        case null { #err("No question with ID " # debug_show(question_id) # " exists") };
         case (?question) {
           var state = question.state;
           if (state != #open) {
-              return #err("Question " # debug_show(args.question_id) # " is not open for answering");
+              return #err("Question " # debug_show(question_id) # " is not open for answering");
+          };
+          switch (account_name_get(account_name)) {
+            case null { return #err("Caller cannot play") };
+            case (?player) {       
+              let pnts = question.points;
+              let ans = List.find(question.answers, func (a : Answer) : Bool = a.id == answer_id);
+              switch (ans) {
+                case null { return #err("Answer id does not exist") };
+                case (?answer) {
+                    account_name_put(account_name, {name = player.name; score = player.score + answer.score});
+                  };
+                };
+              };
+            };  
+          #ok(state)
+        };
+      };
+    };
+  
+
+
+
+  // Vote on an open question
+  public shared({caller}) func vote(answer_id: Nat, question_id: Nat) : async Types.Result<Types.QuestionState, Text> {
+      switch (questions.get(question_id)) {
+        case null { #err("No question with ID " # debug_show(question_id) # " exists") };
+        case (?question) {
+          var state = question.state;
+          if (state != #open) {
+              return #err("Question " # debug_show(question_id) # " is not open for answering");
           };
           switch (account_get(caller)) {
             case null { return #err("Caller cannot play") };
@@ -255,7 +285,6 @@ actor Quiz {
                 return #err("Already voted");
               };        
               let pnts = question.points;
-              let answer_id = args.answer_id;
               let ans = List.find(question.answers, func (a : Answer) : Bool = a.id == answer_id);
               switch (ans) {
                 case null { return #err("Answer id does not exist") };
@@ -282,7 +311,7 @@ actor Quiz {
                   timestamp = question.timestamp;
                   answers = question.answers;
               };
-              questions.put(args.question_id, updated_question);
+              questions.put(question_id, updated_question);
             };  
         };
         #ok(state)

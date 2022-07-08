@@ -50,8 +50,8 @@ const client = createClient({
         <!-- {{principal}} -->
       </header>
       <div class="example">
-        <!-- <Answers />
-        <Profile /> -->
+        <Answers />
+        <!-- <Profile /> -->
         <JSONForm />
       </div>
     </div>

@@ -18,7 +18,8 @@ var s = new Audio(sound)
 
 const saveAccount = async () => {
   wachten.value = "Wachten..."
-  const res = await questions.value.createAccountName(name.value)
+  play()
+  const res = await questions.value.createAccountName(principal.value, name.value)
   console.log("Result: ", res)
   wachten.value = "Bewaar"
 }
@@ -61,7 +62,7 @@ const { isConnected, principal, activeProvider } = useConnect({
               <input v-model="name"> {{ name }}
             </td>
             <td>
-              <button class="connect-button" @click="getAccount">{{wachten}}</button>
+              <button class="connect-button" @click="saveAccount">{{wachten}}</button>
               <button class="connect-button" @click="play">Geluid</button>
 
             </td>

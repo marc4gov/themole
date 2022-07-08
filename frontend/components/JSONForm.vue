@@ -116,15 +116,15 @@ const [questions] = useCanister("questions", { mode: "anonymous" })
 
 const getQuestions = async () => {
   let qqs = []
-  const freshQuestions = await questions.value.list_closed_questions()
+  const freshQuestions = await questions.value.list_questions()
   for (var qid in freshQuestions) {
     const qs = await questions.value.getQuestion(Number(qid))
-    console.log("QS: ", qs.ok)
+    // console.log("QS: ", qs.ok)
     const ans = qs.ok.answers
     const as = await ans.map(a => { return {aid : Number(a.id), answer: a.description, score: Number(a.score), correct: a.correct}})
-    console.log("AS: ", as)
+    // console.log("AS: ", as)
     const qq = {qid: Number(qid), name: qs.ok.name, description: qs.ok.description, open: false, answers: as}
-    console.log("QQ: ", as)
+    // console.log("QQ: ", as)
     qqs.push(qq)
   }
   question_objects.value = qqs

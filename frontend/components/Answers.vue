@@ -26,11 +26,15 @@ const [questions] = useCanister("questions", { mode: "anonymous" })
 const getQuestions = async () => {
   let qqs = []
   const freshQuestions = await questions.value.list_closed_questions()
-  for (var id in freshQuestions) {
-    const qs = await questions.value.getQuestion(Number(id))
-    console.log(qs.ok)
-    // const qq = {id: Number(id), name: qs.ok.name, description: qs.ok.description, answerIds: qs.ok.answer_ids.map(a => Number(a) )}
-    qqs.push(qs.ok)
+  for (var qid in freshQuestions) {
+    const qs = await questions.value.getQuestion(Number(qid))
+    // console.log("QS: ", qs.ok)
+    const ans = qs.ok.answers
+    const as = await ans.map(a => { return {aid : Number(a.id), answer: a.description, score: Number(a.score), correct: a.correct}})
+    // console.log("AS: ", as)
+    const qq = {qid: Number(qid), name: qs.ok.name, description: qs.ok.description, open: false, answers: as}
+    // console.log("QQ: ", as)
+    qqs.push(qq)
   }
   question_objects.value = qqs
 
@@ -57,7 +61,11 @@ const saveAnswer = async (answer, questionId) => {
 //   wachten.value = "Bewaar"
 // }
 
-
+const handleInput = (answer, qua) => {
+  console.log("Input answer: ", answer)
+  console.log("Input question: ", qua)
+  
+}
 
 watchEffect(() => {
 
@@ -67,13 +75,18 @@ onMounted(() => {
   getQuestions()
 })
 </script>
-
-
 <template>
-{{principal}}
+  <div class="example">
+    <template v-if="isConnected">
+      {{principal}}
       <QuestionItem
         v-for="q_obj in question_objects"
-        :question="q_obj">
+        :question="q_obj"
+        :prince="principal">
       </QuestionItem>  
 </template>
-
+    <template v-else>
+      <p class="example-disabled">Connect om vragen te zien </p>
+    </template>
+  </div>
+</template>
